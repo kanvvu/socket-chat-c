@@ -5,19 +5,13 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 
-int main() {
-    //making socket file descriptor
-    //domain: AF_INET - IPv4 Internet protocols,
-    //type: SOCK_STREAM - TCP
-    int socketFD = socket(AF_INET, SOCK_STREAM, 0);
+#include "socket_utils.h"
 
-    char* ip = "172.217.193.106";
+int main() {
+    int socketFD = create_IPv4_socketFD();
+
     struct sockaddr_in address;
-    address.sin_family = AF_INET;
-    //htons - makes sure that bytes are stored in big-endian (the standard network byte order)
-    address.sin_port = htons(80);
-    //inet_pton converts from representation format x.x.x.x to bytes in right order
-    inet_pton(AF_INET, ip, &address.sin_addr.s_addr);
+    set_IPv4_socket_address("142.250.97.147", 80, &address);
 
     int result = connect(socketFD, (struct sockaddr*) &address, sizeof(address));
 
@@ -35,7 +29,7 @@ int main() {
     char buffer[1024];
     recv(socketFD, buffer, 1024, 0);
 
-    printf("Response was %s\n,buffer");
+    printf("Response was %s\n",buffer);
 
 
     return 0;

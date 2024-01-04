@@ -11,7 +11,7 @@ int main() {
     int socketFD = create_IPv4_socketFD();
 
     struct sockaddr_in address;
-    set_IPv4_socket_address("142.250.97.147", 80, &address);
+    set_IPv4_socket_address("127.0.0.1", 2069, &address);
 
     int result = connect(socketFD, (struct sockaddr*) &address, sizeof(address));
 

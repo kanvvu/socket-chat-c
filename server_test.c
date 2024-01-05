@@ -32,17 +32,15 @@ int main() {
         exit(1);
     }
 
-    printf("-ACCEPTED-\n", client_addr.sin_addr.s_addr);
+    printf("-ACCEPTED-\n");
 
 
-    char buffer[1024];
-    if (recv(client_socketFD, buffer, 1024, 0) < 0) {
-        perror("ERROR couldn't read from socket");
-        exit(1);
+    while(1) {
+        char buffer[1024];
+        if (recv(client_socketFD, buffer, 1024, 0) > 0) {
+            printf("Message from client: %s", buffer);
+        }
     }
-
-    printf("Message from client: %s\n", buffer);
-
 
 
 

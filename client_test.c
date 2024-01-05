@@ -10,12 +10,12 @@
 #include "socket_utils.h"
 
 void *recv_msg_from_server(void *socketFD) {
-    int socket = (int) socketFD;
+    int socket = *((int *) socketFD);
 
     while(1) {
         char buffer[1024];
         if (recv(socket, buffer, 1024, 0) > 0){
-            printf("Response was: %s\n",buffer);
+            printf("\n%s", buffer);
         }
 
         pthread_testcancel();
@@ -37,9 +37,12 @@ int main() {
     
     printf("Connection successful\n");
 
-    char *message;
-    message = "Hi! I am kanku!\n";
-    int send_result = send(socketFD, message, strlen(message), 0);
+    char nickname[20];
+    printf("Set your nickname: ");
+    scanf("%s", nickname);
+    getchar();
+    int send_result = send(socketFD, nickname, sizeof(nickname), 0);
+    printf("NICK SENT: %s\n", nickname);
 
     if(send_result == -1) {
         perror("Sending not successful!");
@@ -48,7 +51,7 @@ int main() {
 
     pthread_t thread;
 
-    if(pthread_create(&thread, NULL, recv_msg_from_server, (void *) socketFD) != 0) {
+    if(pthread_create(&thread, NULL, recv_msg_from_server, (void *) &socketFD) != 0) {
         perror("Creating thread not successful!");
         exit(1);
     }
@@ -58,7 +61,6 @@ int main() {
         size_t msg_len = 0;
         printf("Write message: ");
         getline(&new_message, &msg_len, stdin);
-        //printf("Writed msg: %s\n", new_message);
 
         send_result = send(socketFD, new_message, msg_len, 0);
         free(new_message);

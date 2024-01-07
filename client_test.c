@@ -22,47 +22,18 @@ void *recv_msg_from_server(void *socketFD) {
     }
 }
 
-int main() {
-    int socketFD = create_IPv4_socketFD();
-
-    struct sockaddr_in address;
-    set_IPv4_socket_address("127.0.0.1", 2069, &address);
-
-    int result = connect(socketFD, (struct sockaddr*) &address, sizeof(address));
-
-    if(result != 0) {
-        perror("Connection not successful!");
-        exit(1);
-    }
-    
-    printf("Connection successful\n");
-
-    char nickname[20];
-    printf("Set your nickname: ");
-    scanf("%s", nickname);
-    getchar();
-    int send_result = send(socketFD, nickname, sizeof(nickname), 0);
-    printf("NICK SENT: %s\n", nickname);
-
-    if(send_result == -1) {
-        perror("Sending not successful!");
-        exit(1);
-    }
-
-    pthread_t thread;
-
-    if(pthread_create(&thread, NULL, recv_msg_from_server, (void *) &socketFD) != 0) {
-        perror("Creating thread not successful!");
-        exit(1);
-    }
-
+void send_messages(int socketFD){
+    printf("Write message (type 'exit' to exit)\n");
     while(1) {
         char *new_message = NULL;
         size_t msg_len = 0;
-        printf("Write message: ");
         getline(&new_message, &msg_len, stdin);
+        
+        if(strcmp(new_message, "exit\n") == 0){
+            break;
+        }
 
-        send_result = send(socketFD, new_message, msg_len, 0);
+        int send_result = send(socketFD, new_message, msg_len, 0);
         free(new_message);
 
         if(send_result == -1) {
@@ -70,10 +41,50 @@ int main() {
             exit(1);
         }
     }
-    
-    pthread_cancel(thread);
-    pthread_join(thread, NULL);
+}
 
+void get_and_send_nickname(int socketFD){
+    char nickname[20];
+    printf("Set your nickname: ");
+    scanf("%s", nickname);
+    getchar();
+    int send_result = send(socketFD, nickname, sizeof(nickname), 0);
+    printf("NICKNAME SENT: %s\n", nickname);
+
+    if(send_result == -1) {
+        perror("Sending not successful!");
+        exit(1);
+    }
+}
+
+int main() {
+    int socketFD = create_IPv4_socketFD();
+
+    struct sockaddr_in address;
+    set_IPv4_socket_address("127.0.0.1", 2069, &address);
+
+    int result = connect(socketFD, (struct sockaddr*) &address, sizeof(address));
+    if(result != 0) {
+        perror("Connection not successful!");
+        exit(1);
+    }
+    printf("Connection successful\n");
+
+    get_and_send_nickname(socketFD);
+
+    pthread_t thread;
+    if(pthread_create(&thread, NULL, recv_msg_from_server, (void *) &socketFD) != 0) {
+        perror("Creating thread not successful!");
+        exit(1);
+    }
+    
+    send_messages(socketFD);
+
+    pthread_cancel(thread);
+    pthread_join(thread, 0);
+
+    close(socketFD);
+    printf("SUCCESSFULY EXITED!\n");
 
     return 0;
 }

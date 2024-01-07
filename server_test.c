@@ -7,8 +7,10 @@
 #include <arpa/inet.h>
 
 #include "socket_utils.h"
+#include <signal.h>
 
 #include <pthread.h>
+#include <errno.h>
 
 struct client_id
 {
@@ -28,11 +30,13 @@ void send_msg_to_others(char message[1024], int id, struct client_id client){
         if (client.id == i) continue;
 
         int send_result = send(clients[i].socketFD, new_buff, sizeof(new_buff), 0);
-        if(send_result == -1) {
-            perror("Sending not successful!");
-            exit(1);
+        if(send_result < 0) {
+            char error_msg[256];
+            sprintf(error_msg, "ERROR Sending to client (%d) not successful!", i);
+            perror(error_msg);
         }
     }        
+
 }
 
 void * recv_msg_from_client(void* socketFD){
@@ -44,12 +48,15 @@ void * recv_msg_from_client(void* socketFD){
             printf("Message from client (%d): %s",client.id, buffer);
             send_msg_to_others(buffer, client.id, client);
         }
-        else if(recv_result == 0){
-            printf("Client (%d) '%s', disconnected", client.id, client.nickname);
+        if(recv_result < 0) {
+            perror("ERROR recv msg from client");
+        }
+        if(recv_result == 0) {
+            printf("Client disconected!\n");
+            //to-do find better way do to this, i mean better way of storing clients. 
+            //clients_num--;
             break;
         }
-
-        pthread_testcancel();
     }
 }
 
@@ -65,14 +72,13 @@ void accept_client(int socketFD){
     printf("-ACCEPTED-\n");
     char client_nickname[20];
     if (recv(client_socketFD, client_nickname, 20, 0) > 0) 
-        strcpy(&clients[clients_num].nickname,&client_nickname);
+        strcpy(&clients[clients_num].nickname, &client_nickname);
     printf("REC NICKNAME: %s\n", clients[clients_num].nickname);
 
     clients[clients_num].socketFD = client_socketFD;
     clients[clients_num].id = clients_num;
 
     pthread_t client_thread;
-
     if(pthread_create(&client_thread, NULL, recv_msg_from_client, (void *) &clients[clients_num]) != 0) {
         perror("Creating thread not successful!");
         exit(1);
@@ -82,6 +88,9 @@ void accept_client(int socketFD){
 }
 
 int main() {
+    //instead of terminating program when send gives error, show error
+    signal(SIGPIPE, SIG_IGN);
+
     int socketFD = create_IPv4_socketFD();
 
     struct sockaddr_in address;

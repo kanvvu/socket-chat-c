@@ -12,22 +12,34 @@
 #include <pthread.h>
 #include <errno.h>
 
+#define MAX_CLIENTS 10
+
 struct client_id
 {
     int socketFD;
     int id;
+    int is_connected;
     char nickname[20];
+    
 };
 
-struct client_id clients[10];
-int clients_num = 0;
+struct client_id clients[MAX_CLIENTS];
+
+void client_id_struct_init() {
+    for(int i = 0; i<MAX_CLIENTS; i++ ) {
+        clients[i].socketFD = 0;
+        clients[i].id = i;
+        clients[i].is_connected = 0;
+        strcpy(clients[i].nickname, ""); 
+    }
+}
 
 void send_msg_to_others(char message[1024], int id, struct client_id client){
     char new_buff[1024] = "";
     sprintf(new_buff, "%s: %s", client.nickname, message);
 
-    for(int i=0; i<clients_num; i++){
-        if (client.id == i) continue;
+    for(int i=0; i<MAX_CLIENTS; i++){
+        if (client.id == i || clients[i].is_connected == 0) continue;
 
         int send_result = send(clients[i].socketFD, new_buff, sizeof(new_buff), 0);
         if(send_result < 0) {
@@ -52,9 +64,8 @@ void * recv_msg_from_client(void* socketFD){
             perror("ERROR recv msg from client");
         }
         if(recv_result == 0) {
-            printf("Client disconected!\n");
-            //to-do find better way do to this, i mean better way of storing clients. 
-            //clients_num--;
+            printf("Client (%d) disconected!\n", client.id);
+            clients[client.id].is_connected = 0;
             break;
         }
     }
@@ -68,28 +79,36 @@ void accept_client(int socketFD){
         perror("ERROR couldn't accept");
         exit(1);
     }
-
     printf("-ACCEPTED-\n");
-    char client_nickname[20];
-    if (recv(client_socketFD, client_nickname, 20, 0) > 0) 
-        strcpy(&clients[clients_num].nickname, &client_nickname);
-    printf("REC NICKNAME: %s\n", clients[clients_num].nickname);
 
-    clients[clients_num].socketFD = client_socketFD;
-    clients[clients_num].id = clients_num;
+    for(int i=0; i<MAX_CLIENTS; i++){
+        if(!clients[i].is_connected) {
+            clients[i].socketFD = client_socketFD;
+            clients[i].is_connected = 1;
+            printf("Client (%d) conected!\n", clients[i].id);
 
-    pthread_t client_thread;
-    if(pthread_create(&client_thread, NULL, recv_msg_from_client, (void *) &clients[clients_num]) != 0) {
-        perror("Creating thread not successful!");
-        exit(1);
+            char client_nickname[20];
+            if (recv(client_socketFD, client_nickname, 20, 0) > 0) 
+                strcpy(clients[i].nickname, client_nickname);
+            printf("RECV NICKNAME: %s\n", clients[i].nickname);
+
+            pthread_t client_thread;
+            if(pthread_create(&client_thread, NULL, recv_msg_from_client, (void *) &clients[i]) != 0) {
+                perror("Creating thread not successful!");
+                exit(1);
+            }
+
+            break;
+        }
     }
 
-    clients_num += 1;
 }
 
 int main() {
     //instead of terminating program when send gives error, show error
     signal(SIGPIPE, SIG_IGN);
+
+    client_id_struct_init();
 
     int socketFD = create_IPv4_socketFD();
 

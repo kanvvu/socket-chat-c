@@ -1,2 +1,4 @@
 /.vscode
 Makefile
+client_test
+server_test

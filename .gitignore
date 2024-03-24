@@ -1,3 +1,4 @@
 /.vscode
 client_test
 server_test
+*.o
